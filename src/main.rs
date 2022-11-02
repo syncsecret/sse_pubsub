@@ -1,6 +1,11 @@
 
 use clap::Parser;
-
+use std::convert::Infallible;
+use std::net::SocketAddr;
+use hyper::{ Request, Response};
+use hyper::body::Body;
+use hyper::server::conn::http2;
+use hyper::service::{ service_fn};
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -16,5 +21,13 @@ struct Args {
 }
 fn main() {
     let args = Args::parse();
+   match format!("{}:{}",args.bind,args.port).parse::<SocketAddr>() {
+       Ok(addr) => {
+           println!("{}",addr);
+       }
+       Err(err) => {
+           println!("{}",err);
 
+       }
+   }
 }
