@@ -1,14 +1,7 @@
 use clap::Parser;
-// use std::convert::Infallible;
-// use std::future::Future;
-// use std::net::SocketAddr;
-// use hyper::{Request, Response};
-// use hyper::body::Body;
-// use hyper::Server;
-// use hyper::service::{service_fn};
-// use tokio::net::TcpListener;
 
-/// Simple program to greet a person
+
+/// SSE pubsub broker
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -44,7 +37,7 @@ static NOTFOUND: &[u8] = b"Not Found";
 static POST_DATA: &str = r#"{"original": "data"}"#;
 static URL: &str = "http://127.0.0.1:1337/json_api";
 
-async fn client_request_response() -> Result<Response<BoxBody>> {
+async fn subscribe_response() -> Result<Response<BoxBody>> {
     let req = Request::builder()
         .method(Method::POST)
         .uri(URL)
@@ -71,7 +64,7 @@ async fn client_request_response() -> Result<Response<BoxBody>> {
     Ok(Response::new(res_body))
 }
 
-async fn api_post_response(req: Request<IncomingBody>) -> Result<Response<BoxBody>> {
+async fn publish_response(req: Request<IncomingBody>) -> Result<Response<BoxBody>> {
     // Aggregate the body...
     let whole_body = req.collect().await?.aggregate();
     // Decode as JSON...
@@ -87,27 +80,13 @@ async fn api_post_response(req: Request<IncomingBody>) -> Result<Response<BoxBod
     Ok(response)
 }
 
-async fn api_get_response() -> Result<Response<BoxBody>> {
-    let data = vec!["foo", "bar"];
-    let res = match serde_json::to_string(&data) {
-        Ok(json) => Response::builder()
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(full(json))
-            .unwrap(),
-        Err(_) => Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(full(INTERNAL_SERVER_ERROR))
-            .unwrap(),
-    };
-    Ok(res)
-}
+
 
 async fn response_examples(req: Request<IncomingBody>) -> Result<Response<BoxBody>> {
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/") | (&Method::GET, "/index.html") => Ok(Response::new(full(INDEX))),
-        (&Method::GET, "/test.html") => client_request_response().await,
-        (&Method::POST, "/json_api") => api_post_response(req).await,
-        (&Method::GET, "/json_api") => api_get_response().await,
+        (&Method::GET, "/")  => Ok(Response::new(full(INDEX))),
+        (&Method::GET, "/publish") => subscribe_response().await,
+        (&Method::POST, "/subscribe") => publish_response(req).await,
         _ => {
             // Return 404 not found response.
             Ok(Response::builder()
