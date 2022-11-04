@@ -1,3 +1,5 @@
+#![feature(unsized_locals, unsized_fn_params)]
+
 extern crate base64;
 extern crate futures;
 extern crate hyper;
@@ -24,7 +26,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime};
 use tokio::timer::Interval;
 
-const HYDRO_CONTEXT: &'static str = "ssetoken";
+const HYDRO_CONTEXT: &str = "ssetoken";
 
 type Clients = Vec<Client>;
 type Channels<C> = HashMap<C, Clients>;
