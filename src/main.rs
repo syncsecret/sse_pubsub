@@ -16,7 +16,7 @@ struct Args {
 use std::net::SocketAddr;
 
 use bytes::{Buf, Bytes};
-use http_body_util::{BodyExt, Full};
+use http_body_util::{BodyExt, Empty, Full};
 use hyper::server::conn::http2;
 use hyper::service::service_fn;
 use hyper::{body::Incoming as IncomingBody, header, Method, Request, Response, StatusCode};
@@ -56,30 +56,9 @@ enum Body {
 }
 
 async fn subscribe_response() -> Result<Response<BoxBody>> {
-    let req = Request::builder()
-        .method(Method::POST)
-        .uri(URL)
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(Full::new(Bytes::from(POST_DATA)))
-        .unwrap();
+ println!("gofee");
+    Ok(Response::new(full(NOTFOUND)))
 
-    let host = req.uri().host().expect("uri has no host");
-    let port = req.uri().port_u16().expect("uri has no port");
-    let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
-
-    let (mut sender, conn) = hyper::client::conn::http1::handshake(stream).await?;
-
-    tokio::task::spawn(async move {
-        if let Err(err) = conn.await {
-            println!("Connection error: {:?}", err);
-        }
-    });
-
-    let web_res = sender.send_request(req).await?;
-
-    let res_body = web_res.into_body().boxed();
-
-    Ok(Response::new(res_body))
 }
 
 async fn publish_response(req: Request<IncomingBody>) -> Result<Response<BoxBody>> {
@@ -99,11 +78,13 @@ async fn publish_response(req: Request<IncomingBody>) -> Result<Response<BoxBody
 }
 
 async fn response_examples(req: Request<IncomingBody>) -> Result<Response<BoxBody>> {
+    println!("zabpp");
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => Ok(Response::new(full(INDEX))),
-        (&Method::GET, "/publish") => subscribe_response().await,
-        (&Method::POST, "/subscribe") => publish_response(req).await,
+        (&Method::GET, "/publish") => publish_response(req).await,
+        (&Method::POST, "/subscribe") => subscribe_response().await,
         _ => {
+            println!("yo boy");
             // Return 404 not found response.
             Ok(Response::builder()
                 .status(StatusCode::NOT_FOUND)
@@ -122,19 +103,19 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody {
 #[tokio::main]
 async fn main() -> Result<()> {
     pretty_env_logger::init();
+    let local = tokio::task::LocalSet::new();
 
     let args = Args::parse();
     match format!("{}:{}", args.bind, args.port).parse::<SocketAddr>() {
         Ok(addr) => {
             let listener = TcpListener::bind(&addr).await?;
             println!("Listening on http://{}", addr);
-            let local = tokio::task::LocalSet::new();
 
             loop {
                 let (stream, _) = listener.accept().await?;
 
                 local.run_until(async {
-                    local.spawn_local(async {
+                 //   local.spawn_local(async {
                         let service = service_fn(response_examples);
                         println!("in here");
                         if let Err(err) = http2::Builder::new(LocalExec)
@@ -143,7 +124,7 @@ async fn main() -> Result<()> {
                         {
                             println!("Failed to serve connection: {:?}", err);
                         }
-                    }).await.unwrap();
+                 //   }).await.unwrap();
                 }).await;
             }
         }
