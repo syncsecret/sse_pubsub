@@ -1,4 +1,5 @@
 use clap::Parser;
+use std::fmt::Debug;
 
 /// SSE pubsub broker
 #[derive(Parser, Debug)]
@@ -17,7 +18,7 @@ use std::net::SocketAddr;
 
 use bytes::{Buf, Bytes};
 use http_body_util::{BodyExt, Empty, Full};
-use hyper::server::conn::http2;
+use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{body::Incoming as IncomingBody, header, Method, Request, Response, StatusCode};
 use tokio::net::{TcpListener, TcpStream};
@@ -43,6 +44,11 @@ impl Client {
     }
 }
 
+impl Default for Client {
+    fn default() -> Self {
+        Client::new()
+    }
+}
 enum Route {
     NotFound,
     Publish(Body),
@@ -56,9 +62,8 @@ enum Body {
 }
 
 async fn subscribe_response() -> Result<Response<BoxBody>> {
- println!("gofee");
+    println!("gofee");
     Ok(Response::new(full(NOTFOUND)))
-
 }
 
 async fn publish_response(req: Request<IncomingBody>) -> Result<Response<BoxBody>> {
@@ -103,7 +108,6 @@ fn full<T: Into<Bytes>>(chunk: T) -> BoxBody {
 #[tokio::main]
 async fn main() -> Result<()> {
     pretty_env_logger::init();
-    let local = tokio::task::LocalSet::new();
 
     let args = Args::parse();
     match format!("{}:{}", args.bind, args.port).parse::<SocketAddr>() {
@@ -114,18 +118,20 @@ async fn main() -> Result<()> {
             loop {
                 let (stream, _) = listener.accept().await?;
 
-                local.run_until(async {
-                 //   local.spawn_local(async {
+                tokio::spawn(
+                async {
+                        //   local.spawn_local(async {
                         let service = service_fn(response_examples);
                         println!("in here");
-                        if let Err(err) = http2::Builder::new(LocalExec)
+                        if let Err(err) = http1::Builder::new()
                             .serve_connection(stream, service)
                             .await
                         {
                             println!("Failed to serve connection: {:?}", err);
                         }
-                 //   }).await.unwrap();
-                }).await;
+                        //   }).await.unwrap();
+                    })
+                    ;
             }
         }
         Err(err) => {
@@ -134,20 +140,4 @@ async fn main() -> Result<()> {
         }
     }
 }
-// NOTE: This part is only needed for HTTP/2. HTTP/1 doesn't need an executor.
-//
-// Since the Server needs to spawn some background tasks, we needed
-// to configure an Executor that can spawn !Send futures...
-#[derive(Clone, Copy, Debug)]
-struct LocalExec;
 
-impl<F> hyper::rt::Executor<F> for LocalExec
-    where
-        F: std::future::Future + 'static, // not requiring `Send`
-{
-    fn execute(&self, fut: F) {
-        println!("in execture");
-        // This will spawn into the currently running `LocalSet`.
-        tokio::task::spawn_local(fut);
-    }
-}
