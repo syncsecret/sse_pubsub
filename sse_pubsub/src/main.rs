@@ -21,7 +21,7 @@ use http_body_util::{BodyExt, Empty, Full};
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{body::Incoming as IncomingBody, header, Method, Request, Response, StatusCode};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener};
 use uuid::Uuid;
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
