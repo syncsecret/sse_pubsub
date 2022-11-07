@@ -41,25 +41,8 @@ pub enum SseError {
 
 impl From<Error> for SseError {
     fn from(error: Error) -> Self {
-        match error {
-            // Error::Algorithm => { Pbkdf2Error { source: error } }
-            // Error::B64Encoding(_) => {Pbkdf2Error}
-            // Error::Crypto => {Pbkdf2Error}
-            // Error::OutputTooShort => {Pbkdf2Error}
-            // Error::OutputTooLong => {Pbkdf2Error}
-            // Error::ParamNameDuplicated => {Pbkdf2Error}
-            // Error::ParamNameInvalid => {Pbkdf2Error}
-            // Error::ParamValueInvalid(_) => {Pbkdf2Error}
-            // Error::ParamsMaxExceeded => {Pbkdf2Error}
-            // Error::Password => {Pbkdf2Error}
-            // Error::PhcStringInvalid => {Pbkdf2Error}
-            // Error::PhcStringTooShort => {Pbkdf2Error}
-            // Error::PhcStringTooLong => {Pbkdf2Error}
-            // Error::SaltInvalid(_) => {Pbkdf2Error}
-            // Error::Version => {Pbkdf2Error}
-            _ => Pbkdf2Error {
-                source: DisplayError(error),
-            },
+        Pbkdf2Error {
+            source: DisplayError(error),
         }
     }
 }
@@ -79,18 +62,31 @@ pub fn hash_password<P: Into<String>, S: Into<String>>(
 
 #[cfg(test)]
 mod tests {
-    use crate::hash_password;
+    use std::error::Error;
+    use snafu::AsErrorSource;
+    use crate::{hash_password, SseError};
 
     #[test]
     fn it_works() {
         let var = hash_password("bobss", " fgdfgsalt").unwrap();
         println!("yo {}", var);
         let s: String = String::from("bob");
-        if let Ok(something) =   hash_password(s, "x".repeat(100))  {
+        if let Ok(something) =   hash_password(&s, "x".repeat(100))  {
             println!("was ok {}",something);
         }
         else {
             println!("yo error");
+        }
+        match hash_password(s, "x".repeat(100))  {
+            Ok(value) => {println!("{}",value);}
+            Err(err) => {
+                match err  {
+                    SseError::Pbkdf2Error { source } => {
+
+                        println!("{:?}",source.0)}
+                    SseError::ParseError => {}
+                }
+            }
         }
     }
 }
