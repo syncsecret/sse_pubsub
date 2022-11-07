@@ -34,7 +34,7 @@ impl<T> snafu::Error for DisplayError<T> where T: Display + Debug {}
 #[derive(Debug, Snafu)]
 pub enum SseError {
     Pbkdf2Error {
-        source: DisplayError<pbkdf2::password_hash::Error>,
+        source: DisplayError<Error>,
     },
     ParseError,
 }
@@ -52,18 +52,17 @@ pub fn hash_password<P: Into<String>, S: Into<String>>(
     secret: P,
     salt: S,
 ) -> Result<String, SseError> {
-    let password = secret.into();
     let salt = SaltString::b64_encode(salt.into().as_bytes())?;
     // Hash password to PHC string ($pbkdf2-sha256$...)
-    let password_hash = Pbkdf2.hash_password(password.as_bytes(), &salt)?;
+    let password_hash = Pbkdf2.hash_password(secret.into().as_bytes(), &salt)?;
 
     Ok(password_hash.hash.unwrap().to_string())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
-    use snafu::AsErrorSource;
+
+
     use crate::{hash_password, SseError};
 
     #[test]
